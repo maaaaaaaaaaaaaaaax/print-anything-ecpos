@@ -1,0 +1,15 @@
+model: TM-T88V
+escpos_profile: TM-T88V
+dpi: 180
+print_width_dots: 512
+font_a:
+  columns: 42
+  char_width_dots: 12
+  line_height_dots: 24
+font_b:
+  columns: 56
+  char_width_dots: 9
+  line_height_dots: 17
+usb:
+  vendor: 0x04b8
+  product: 0x0e02
