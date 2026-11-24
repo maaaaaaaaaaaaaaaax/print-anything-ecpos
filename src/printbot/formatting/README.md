@@ -11,16 +11,20 @@ Pure functions that turn content into pixels and text lines. No I/O except readi
 | `images.py` | `image.py` | `fit_within`, `rotate`, `pad_horizontal`, `to_one_bit`. Dithers: `floyd_steinberg`, `threshold`, `ordered` (4x4 Bayer). The old config named a halftone dither but never used it |
 | `text_normalization.py` | new | `normalize_text`: line endings to `\n`, Unicode to NFC. Used by `render_spans` and `wrap_text`. Decomposed umlauts otherwise print as `u?` in native mode, and a bare carriage return crashed the raqm layout engine |
 | `text_layout.py` | `layout.py` | `wrap_text`, `align_line`, `rule`, `two_columns`, `table_row`, `boxed`. Return lines instead of joined strings |
+| `text_planner.py` | new | `plan_text(document, profile)` produces deterministic text plans for the text MVP |
 | `fonts/` | `fonts/` | Twelve TTF files plus `licenses/`, package data. Fonts load with Pillow's basic layout engine so output is identical on every machine |
 
 Dropped: URL and base64 image loading (belongs to `ingest`), the `ImageLayout` duplicate, the chained `TextFormatter`.
+
+`plan_text` normalizes a document, wraps each line to the profile's Font A columns, and appends feed
+and cut operations. CP858-safe text remains native. If one character is outside CP858, the whole job
+is rendered as a raster image so native and raster text are never mixed.
 
 ## Planned
 
 - `config.py`: `FormatConfig`, including `text_mode` (`native` default, `raster` by option, never mixed within a job)
 - `settings.py`: the setting registry used by `/set`, `/settings` and caption parsing
-- `layout.py`: `plan(document, config, profile, assets) -> PrintPlan`, plus the length estimate
-- native text layout: wrapping to the profile's columns, size multipliers for headings
+- styled heading layout and other block kinds; the basic profile-column wrapping is implemented
 
 ## Rules
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
+from unittest.mock import AsyncMock
 
 from aiogram.types import Chat, Message, Update, User
 
@@ -36,17 +37,25 @@ def message_update(user_id: int, text: str) -> Update:
 
 
 async def test_allowed_update_reaches_registered_text_handler() -> None:
-    dispatcher = create_dispatcher(Config(telegram_token="123:secret", allowed_user_ids="42"))
+    service = AsyncMock()
+    service.submit.return_value = object()
+    dispatcher = create_dispatcher(
+        Config(telegram_token="123:secret", allowed_user_ids="42"),
+        service,
+    )
     bot = RecordingBot()
 
     await dispatcher.feed_update(cast("Bot", bot), message_update(42, "hello"))
 
     assert len(bot.calls) == 1
-    assert bot.calls[0].model_dump()["text"] == "Message received."
+    assert bot.calls[0].model_dump()["text"] == "Queued for printing."
 
 
 async def test_allowed_start_reaches_registered_command_handler() -> None:
-    dispatcher = create_dispatcher(Config(telegram_token="123:secret", allowed_user_ids="42"))
+    dispatcher = create_dispatcher(
+        Config(telegram_token="123:secret", allowed_user_ids="42"),
+        AsyncMock(),
+    )
     bot = RecordingBot()
 
     await dispatcher.feed_update(cast("Bot", bot), message_update(42, "/start"))
@@ -56,7 +65,10 @@ async def test_allowed_start_reaches_registered_command_handler() -> None:
 
 
 async def test_rejected_update_is_dropped_before_registered_handler() -> None:
-    dispatcher = create_dispatcher(Config(telegram_token="123:secret", allowed_user_ids="42"))
+    dispatcher = create_dispatcher(
+        Config(telegram_token="123:secret", allowed_user_ids="42"),
+        AsyncMock(),
+    )
     bot = RecordingBot()
 
     await dispatcher.feed_update(cast("Bot", bot), message_update(7, "hello"))

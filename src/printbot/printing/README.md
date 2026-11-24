@@ -8,6 +8,7 @@ Talks to the printer. Depends on `kernel` only. `escpos` is imported only in `es
 | --- | --- |
 | `ports.py` | `Printer` protocol, `PrinterStatus`, `PaperState` |
 | `escpos_usb.py` | `EscposUsbPrinter`: executes a `PrintPlan` through python-escpos |
+| `fake.py` | `FakePrinter`: records plans and writes PNG output without hardware |
 | `status_codes.py` | Pure parsers for the real-time status replies |
 | `profile_loader.py` | Loads and validates YAML profiles into `PrinterProfile` |
 | `errors.py` | `PrinterError`, `PrinterConnectionError`, `PrinterExecutionError`, `ProfileError` |
@@ -23,6 +24,7 @@ Talks to the printer. Depends on `kernel` only. `escpos` is imported only in `es
 - `close()` is idempotent. After it, `execute()` and `status()` raise `PrinterClosedError`.
 - Cancelling a task that awaits `execute()` does not stop a print already running on the worker thread. Callers must treat a cancelled `execute()` as possibly printed.
 - A printer that sends no status reply reports `UNKNOWN`, not healthy. python-escpos's own `paper_status()` returns "adequate" for an empty reply, so it is deliberately not used.
+- `FakePrinter` serializes writes, stores completed plans, and reports output filesystem failures as `PrinterExecutionError`.
 
 ## Profiles
 
@@ -44,6 +46,6 @@ Record the printer make/model, paper width, USB ID, host OS, selected profile, l
 
 The adapter currently uses a 30-second USB timeout. python-escpos's USB backend uses endpoint IN `0x82` and OUT `0x01`. These are expected library defaults, not observations on a connected device; record whether the printer works with them and adjust only if the physical test shows a problem.
 
-## Planned
-
-`fake.py`: `FakePrinter` that records plans and renders them to PNG for development without hardware.
+The fake backend writes numbered PNG files to its configured output directory. It renders native text
+and raster operations at the selected profile width, reports healthy paper status, and requires no
+USB access.

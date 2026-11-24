@@ -11,6 +11,7 @@ from printbot.printing.escpos_usb import (
     EscposUsbPrinter,
     usb_device_factory,
 )
+from printbot.printing.fake import FakePrinter
 from printbot.printing.ports import PaperState, Printer, PrinterStatus
 from printbot.printing.profile_loader import (
     bundled_profile_names,
@@ -22,6 +23,7 @@ __all__ = [
     "DEFAULT_USB_TIMEOUT_MS",
     "DeviceFactory",
     "EscposUsbPrinter",
+    "FakePrinter",
     "PaperState",
     "Printer",
     "PrinterClosedError",
