@@ -2,8 +2,11 @@
 
 Telegram front end built on aiogram 3. Never imports `storage`.
 
-## Planned
+## Current implementation
 
-Auth middleware with a user-ID whitelist, ingest router, command router, callback router and the `Notifier` implementation that edits one status message per job.
+`AllowlistMiddleware` runs at the dispatcher update boundary. It drops updates without an
+allowlisted user before any handler runs. The message router acknowledges `/start` with
+`Printbot is ready.` and plain text with `Message received.`.
 
-This package is empty. The `.placeholder` file marks it as not yet built.
+The package has no storage, job, or printer dependencies. Ingestion, settings and callback
+routers, plus the job notifier, remain planned.

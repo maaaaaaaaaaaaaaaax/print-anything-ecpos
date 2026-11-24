@@ -39,6 +39,22 @@
 
 **Run anywhere**: the same code runs on the Mac with `PRINTER_BACKEND=fake`, which renders print plans to PNG files. Most development never needs the hardware.
 
+## Running the minimal bot
+
+Install the locked environment, copy the environment template, and replace its placeholders:
+
+```sh
+uv sync
+cp .env.example .env
+uv run printbot
+```
+
+`ALLOWED_USER_IDS` is a comma-separated list of positive decimal Telegram user IDs. The bot responds to `/start` and plain text messages from allowlisted users. Other users' updates are ignored before routing. This minimal bot only acknowledges messages; it does not queue or print them.
+
+For multiple allowed users, separate IDs with commas, for example `ALLOWED_USER_IDS=123456,789012`.
+The actual `.env` file is ignored by Git. Keep `TELEGRAM_TOKEN` in `.env`, the process
+environment, or a secret manager. Never commit it.
+
 ## 3. System overview
 
 ```
@@ -452,9 +468,13 @@ SQLite runs in WAL mode with `busy_timeout`. A retention task deletes assets and
 
 ### 5.7 messaging
 
-aiogram 3 with three routers and one middleware.
+The implemented foundation uses aiogram 3 with one message router and one update-level middleware.
 
 - **Auth middleware**: drops every update whose user ID is not in the whitelist, before any handler runs.
+- **Message router**: acknowledges `/start` and plain text without submitting a job.
+
+The following messaging features remain planned:
+
 - **Ingest router**: text, URLs, documents, photos, forwarded messages. Downloads files into a temp area, builds a `Source`, parses the caption into `JobOptions`, submits to the jobs service, replies "queued".
 - **Command router**: `/settings`, `/set key value`, `/reset`, `/status`, `/queue`, `/cancel`, `/reprint`, `/newroll`, `/help`.
 - **Callback router**: Print and Cancel buttons from the confirm gate, and reprint or discard for interrupted jobs.
@@ -467,9 +487,9 @@ Telegram specifics to handle: photos sent as photos are compressed (prefer sendi
 
 ### 5.8 app
 
-- `Config` via pydantic-settings from environment: `TELEGRAM_TOKEN`, `ALLOWED_USER_IDS`, `DATA_DIR`, `PRINTER_BACKEND` (`usb` or `fake`), `USB_VENDOR_ID`, `USB_PRODUCT_ID`, `LOG_LEVEL`.
-- Composition root builds concrete objects and injects them. No globals, no service locators.
-- Entrypoint starts the bot, the conversion workers, the print worker and the printer status poller under one `asyncio.TaskGroup`, with graceful shutdown on SIGTERM.
+The current `Config` uses pydantic-settings to read `TELEGRAM_TOKEN` and `ALLOWED_USER_IDS` from the environment. The composition root builds the aiogram bot, dispatcher, middleware, and message router. The `printbot` entry point uses long polling and closes the bot session when polling exits.
+
+The remaining app composition is planned: `DATA_DIR`, `PRINTER_BACKEND` (`usb` or `fake`), `USB_VENDOR_ID`, `USB_PRODUCT_ID`, `LOG_LEVEL`, repositories, conversion and print workers, and the printer status poller. These components will run under one `asyncio.TaskGroup`, with graceful shutdown on SIGTERM. Composition remains injected with no globals or service locators.
 
 ## 6. Cross-cutting rules
 

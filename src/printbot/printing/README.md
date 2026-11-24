@@ -30,16 +30,19 @@ TM-T88IV and TM-T88V: 180 dpi, 512 dot print width on 80 mm paper, Font A 42 col
 
 These values come from python-escpos's capability data, not from a measurement on your unit.
 
-## Not verified without hardware
+## USB hardware verification
 
-The command bytes and reply bit masks in `status_codes.py` follow the Epson real-time status commands but are tested only against scripted replies. Phase 3 checklist on the real printer:
+Run the smoke test on the Raspberry Pi with the printer connected and paper loaded:
 
-- 42 and 56 columns in Font A and B
-- umlauts, curly quotes, euro sign
-- cut behavior
-- near-end and out-of-paper replies, cover-open reply
-- whether the unit answers status requests over USB at all
-- the USB write timeout, and the endpoints python-escpos hard-codes (in `0x82`, out `0x01`)
+```sh
+PRINTBOT_HARDWARE_TEST=1 PRINTBOT_USB_PROFILE=tm_t88v uv run pytest -s tests/printing/test_usb_hardware.py
+```
+
+Set `PRINTBOT_USB_PROFILE` to `tm_t88iv` for that model. The bundled profiles describe Epson TM-T88V (04b8:0e02) and TM-T88IV (04b8:0202); confirm the printer's label and USB ID before selecting one. The test loads the profile, prints Font A and B samples, alignment samples, a 42-character line, then cuts, and queries online, paper, and cover status. Hardware checks are skipped by the default `just check`.
+
+Record the printer make/model, paper width, USB ID, host OS, selected profile, legibility/encoding of umlauts, curly quotes and euro sign, line width/alignment, and cut result. The test prints its host, profile, ID, timeout, and status values; include the observations from the physical receipt. Status `None` or `unknown` is not proof of a healthy printer: record it as unsupported/unanswered and verify by inspection.
+
+The adapter currently uses a 30-second USB timeout. python-escpos's USB backend uses endpoint IN `0x82` and OUT `0x01`. These are expected library defaults, not observations on a connected device; record whether the printer works with them and adjust only if the physical test shows a problem.
 
 ## Planned
 
