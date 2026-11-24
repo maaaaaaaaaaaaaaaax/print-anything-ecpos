@@ -10,6 +10,8 @@ Shared immutable value types. Imports nothing from the project.
 | `literals.py` | Closed sets shared across domains: `Alignment`, `NativeFont`, `CutMode` |
 | `printer_profile.py` | `PrinterProfile`, `FontMetrics`, `UsbId`: static hardware facts, validated so both fonts fit the print width |
 | `print_plan.py` | `PrintPlan` and its ops: `TextOp`, `RasterOp`, `QrOp`, `FeedOp`, `CutOp` |
+| `documents.py` | Minimal text document IR: `Document`, `Paragraph`, `Run` |
+| `sources.py` | `TextSource` used by the text MVP |
 
 ## Why the print plan lives here
 
@@ -19,6 +21,9 @@ Shared immutable value types. Imports nothing from the project.
 
 Plan models carry PIL images, so they allow arbitrary types. Plans are never persisted. Blocks are.
 
+The text document is a single paragraph or a sequence of paragraphs made of runs. Empty documents
+are rejected. `TextSource` rejects blank input.
+
 ## Planned
 
-`blocks.py` (the block IR), `source.py` (`TextSource`, `UrlSource`, `FileSource`, `MediaType`), `job_options.py`, `ids.py`.
+Additional block kinds, URL and file sources, job options, media types, and typed identifiers.

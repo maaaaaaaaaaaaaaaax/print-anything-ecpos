@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
-from aiogram.types import Chat, Message, User
+from aiogram.types import Chat, Message, Update, User
 
-from printbot.messaging import acknowledge_text, start
+from printbot.messaging import start, submit_text
 
 
 def message(text: str) -> Message:
@@ -28,11 +28,32 @@ async def test_start_acknowledges_message(monkeypatch) -> None:
     answer.assert_awaited_once_with("Printbot is ready.")
 
 
-async def test_text_message_is_acknowledged(monkeypatch) -> None:
+async def test_text_message_is_queued(monkeypatch) -> None:
     telegram_message = message("hello")
     answer = AsyncMock()
+    service = AsyncMock()
+    service.submit.return_value = object()
+    update = Update(update_id=7, message=telegram_message)
     monkeypatch.setattr(Message, "answer", answer)
 
-    await acknowledge_text(telegram_message)
+    await submit_text(telegram_message, update, service)
 
-    answer.assert_awaited_once_with("Message received.")
+    service.submit.assert_awaited_once_with(
+        chat_id=42,
+        telegram_update_id=7,
+        text="hello",
+    )
+    answer.assert_awaited_once_with("Queued for printing.")
+
+
+async def test_duplicate_text_update_is_not_acknowledged_again(monkeypatch) -> None:
+    telegram_message = message("hello")
+    answer = AsyncMock()
+    service = AsyncMock()
+    service.submit.return_value = None
+    update = Update(update_id=7, message=telegram_message)
+    monkeypatch.setattr(Message, "answer", answer)
+
+    await submit_text(telegram_message, update, service)
+
+    answer.assert_not_awaited()

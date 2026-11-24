@@ -49,7 +49,9 @@ cp .env.example .env
 uv run printbot
 ```
 
-`ALLOWED_USER_IDS` is a comma-separated list of positive decimal Telegram user IDs. The bot responds to `/start` and plain text messages from allowlisted users. Other users' updates are ignored before routing. This minimal bot only acknowledges messages; it does not queue or print them.
+`ALLOWED_USER_IDS` is a comma-separated list of positive decimal Telegram user IDs. The bot responds to `/start` and plain text messages from allowlisted users. Other users' updates are ignored before routing. Plain text is persisted as a job, reported as queued, converted, laid out for the configured profile, and printed by the single print worker.
+
+`PRINTER_BACKEND` is `fake` by default or `usb` for the configured printer. `PRINTER_PROFILE` selects a bundled profile such as `tm_t88v`. Fake output is uploaded to Telegram as a PNG document and deleted locally after a successful upload; it is not retained on disk. The SQLite database is stored at `DATA_DIR/jobs.sqlite3`. Set `DATA_DIR` to a writable persistent directory on the Pi.
 
 For multiple allowed users, separate IDs with commas, for example `ALLOWED_USER_IDS=123456,789012`.
 The actual `.env` file is ignored by Git. Keep `TELEGRAM_TOKEN` in `.env`, the process
@@ -61,21 +63,19 @@ environment, or a secret manager. Never commit it.
 Telegram (iPhone / Mac)
    |  long polling, user-ID whitelist
    v
-messaging  --- submits ---> jobs service ---> SQLite (jobs, settings, assets, paper)
+messaging  --- submits ---> jobs service ---> SQLite (text jobs)
    ^                            |
-   |                            +--> conversion stage (concurrent, bounded)
-   |                            |        ingest: detect -> convert -> blocks (JSON)
-   |                            |
-   |                            +--> confirm gate (long output needs a tap)
+   |                            +--> conversion stage
+   |                            |        ingest: plain text -> blocks (JSON)
    |                            |
    |                            +--> print stage (single worker, serial)
-   |                                     formatting: blocks + config -> PrintPlan
+   |                                     formatting: blocks + profile -> PrintPlan
    |                                     printing: PrintPlan -> ESC/POS -> USB
    |                                               
-   +---- Notifier <---- job updates, printer alerts, paper warnings
+   +---- Notifier <---- job lifecycle updates
 ```
 
-The central idea is a **block intermediate representation** (IR). Every converter emits blocks. One formatter turns blocks into a print plan. One printer adapter executes the plan. New file type means a new converter and nothing else.
+The current vertical slice handles plain text. The central idea is a **block intermediate representation** (IR): each converter emits blocks, formatting turns them into a print plan, and one printer adapter executes the plan. Confirmation, settings, paper state, and other source types remain planned.
 
 ## 4. Repository layout
 
@@ -314,9 +314,9 @@ PrintOp = TextOp | RasterOp | QrOp | FeedOp | CutOp
 - Text blocks become wrapped, styled `TextOp` lines sized to the paper's characters per line.
 - Images are resized to the printable width in dots and dithered into 1-bit `RasterOp`.
 - Length is computed from the plan (line height times lines plus raster height over dots per mm), so the confirm gate needs no hardware.
-- Characters the printer's code page cannot encode (umlauts, quotes, dashes) are transliterated or the line is rasterized. This needs an explicit policy and tests, because cheap printers handle encodings badly.
+- The text MVP uses CP858 as the native printer-safe character boundary. If any character cannot be encoded by CP858, the entire job is rasterized with the bundled Unicode font. Native and raster text are never mixed within one job.
 
-Because the plan is pure data, layout is covered by snapshot tests with no printer attached.
+Because the plan is pure data, layout is tested with no printer attached.
 
 ### 5.4 printing
 
@@ -351,6 +351,8 @@ Implementations:
 ### 5.5 jobs
 
 Owns the job lifecycle. Pure state machine, plus async workers.
+
+The current text MVP uses the `RECEIVED -> CONVERTING -> READY -> PRINTING -> DONE` path, with `FAILED` reachable from conversion or printing. Confirmation, cancellation, interruption recovery, and retries remain future work.
 
 ```python
 class JobStatus(StrEnum):
@@ -405,10 +407,10 @@ class Notifier(Protocol):
 
 **Two stages, one printer.**
 
-- Conversion stage: bounded concurrency (semaphore, 2 to 3). Claims `RECEIVED`, converts, stores blocks and a config snapshot, computes length, moves to `READY` or `AWAITING_CONFIRMATION`.
-- Print stage: exactly one worker. Claims `READY` in creation order, runs layout, executes on the printer, records mm printed, marks `DONE`.
+- The text conversion worker claims `RECEIVED`, converts plain text to blocks, stores the document, computes the estimated length, and moves to `READY`.
+- Print stage: exactly one worker. It claims `READY` in creation order, runs layout, executes on the printer, and marks `DONE`.
 
-A slow OCR job never blocks a quick text print, and prints never interleave.
+For the current text-only path, this guarantees that prints never interleave.
 
 **Rules**
 
@@ -421,26 +423,23 @@ A slow OCR job never blocks a quick text print, and prints never interleave.
 
 ### 5.6 storage
 
-SQLite implementations of `JobRepository`, `SettingsStore`, `PaperLedger`, asset index, plus a small migration runner that applies numbered SQL files in order and records the applied version.
+The current `SQLiteJobRepository` persists text jobs, and a migration runner applies numbered SQL files in order and records the applied version. `SettingsStore`, `PaperLedger`, and the asset index remain planned.
 
 ```sql
 CREATE TABLE jobs (
   id INTEGER PRIMARY KEY,
   chat_id INTEGER NOT NULL,
-  tg_update_id INTEGER NOT NULL UNIQUE,
+  telegram_update_id INTEGER NOT NULL UNIQUE,
   source_json TEXT NOT NULL,
-  options_json TEXT NOT NULL,
-  config_json TEXT,
-  blocks_json TEXT,
+  document_json TEXT,
   status TEXT NOT NULL,
-  est_length_mm REAL,
+  estimated_length_mm REAL,
   error TEXT,
-  attempts INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  created_at REAL NOT NULL,
+  updated_at REAL NOT NULL
 );
 
-CREATE INDEX jobs_status_created ON jobs (status, created_at);
+CREATE INDEX jobs_status_created_at ON jobs (status, created_at, id);
 
 CREATE TABLE settings (
   chat_id INTEGER NOT NULL,
@@ -464,22 +463,23 @@ CREATE TABLE paper_rolls (
 );
 ```
 
-SQLite runs in WAL mode with `busy_timeout`. A retention task deletes assets and old job payloads after a configurable number of days.
+SQLite runs in WAL mode with `busy_timeout`. Telegram update IDs are unique, claims use an immediate transaction and creation order, and stale compare-and-set transitions do not mutate jobs. Retention remains planned.
 
 ### 5.7 messaging
 
 The implemented foundation uses aiogram 3 with one message router and one update-level middleware.
 
 - **Auth middleware**: drops every update whose user ID is not in the whitelist, before any handler runs.
-- **Message router**: acknowledges `/start` and plain text without submitting a job.
+- **Message router**: acknowledges `/start`; plain text is submitted with the Telegram update ID and receives "Queued for printing."
+- **Notifier**: reports conversion, ready, printing, success, and failure messages for each job.
 
 The following messaging features remain planned:
 
-- **Ingest router**: text, URLs, documents, photos, forwarded messages. Downloads files into a temp area, builds a `Source`, parses the caption into `JobOptions`, submits to the jobs service, replies "queued".
+- **Ingest router**: URLs, documents, photos, and forwarded messages. Downloads files into a temp area, builds a `Source`, and parses captions into `JobOptions`.
 - **Command router**: `/settings`, `/set key value`, `/reset`, `/status`, `/queue`, `/cancel`, `/reprint`, `/newroll`, `/help`.
 - **Callback router**: Print and Cancel buttons from the confirm gate, and reprint or discard for interrupted jobs.
 
-`TelegramNotifier` implements `Notifier`. It edits one status message per job through its lifecycle instead of sending a new message each time.
+`TelegramNotifier` implements `Notifier` by sending a short lifecycle message for each transition.
 
 Caption syntax: plain tokens such as `ocr`, `img`, `pages 1-3`, `copies 2`, or `key=value` for any registry setting. Parsed into `JobOptions` using the same registry as `/set`.
 
@@ -487,9 +487,9 @@ Telegram specifics to handle: photos sent as photos are compressed (prefer sendi
 
 ### 5.8 app
 
-The current `Config` uses pydantic-settings to read `TELEGRAM_TOKEN` and `ALLOWED_USER_IDS` from the environment. The composition root builds the aiogram bot, dispatcher, middleware, and message router. The `printbot` entry point uses long polling and closes the bot session when polling exits.
+`Config` uses pydantic-settings to read Telegram credentials and runtime paths plus `PRINTER_BACKEND` and `PRINTER_PROFILE`. The composition root opens SQLite, selects the fake or USB printer, wires the converter, planner, one print worker, notifier, middleware, and handlers, and runs polling under an `asyncio.TaskGroup`. Printer and repository resources close when polling exits.
 
-The remaining app composition is planned: `DATA_DIR`, `PRINTER_BACKEND` (`usb` or `fake`), `USB_VENDOR_ID`, `USB_PRODUCT_ID`, `LOG_LEVEL`, repositories, conversion and print workers, and the printer status poller. These components will run under one `asyncio.TaskGroup`, with graceful shutdown on SIGTERM. Composition remains injected with no globals or service locators.
+Printer status polling, alerts, logging configuration, and deployment remain planned. Composition is injected with no globals or service locators.
 
 ## 6. Cross-cutting rules
 
@@ -518,15 +518,15 @@ The remaining app composition is planned: `DATA_DIR`, `PRINTER_BACKEND` (`usb` o
 - A udev rule grants the service user access to the printer by vendor and product ID.
 - A systemd unit runs `uv run printbot` with `EnvironmentFile` for secrets, `Restart=always`, and `MemoryMax` as a backstop against runaway conversions.
 - Update flow: `git pull`, `uv sync --frozen`, `systemctl restart printbot`. A `just deploy` recipe wraps it.
-- The SQLite file and asset directory live under `DATA_DIR`, on SSD or a quality SD card.
+- The SQLite file and fake-printer output live under `DATA_DIR`, on SSD or a quality SD card.
 
 ## 9. Build plan
 
 Each phase ends with `just check` green and a short demo.
 
 1. **Skeleton.** uv project, Ruff, ty, import-linter contracts, pytest, justfile, AGENTS.md. App boots and exits cleanly. Kernel types and the state machine with tests.
-2. **Vertical slice on the fake printer.** Text message to job row to blocks to plan to PNG, with Telegram replies. Whitelist enforced. Migrations and repositories.
-3. **Real printer.** `EscposUsbPrinter`, code page and encoding policy, cut, status reads. Hardware test checklist.
+2. **Vertical slice on the fake printer.** Implemented: text message to job row to blocks to plan to PNG, with Telegram replies, whitelist enforcement, migrations, repository, and serial print worker.
+3. **Real printer.** Implemented adapter and hardware smoke path; hardware legibility still needs validation on the connected printer.
 4. **Format engine.** Setting registry, `/set`, `/settings`, `/reset`, caption overrides, config snapshots.
 5. **Markdown and URLs.** Markdown converter with checklists, trafilatura pipeline, provenance header and QR.
 6. **Images.** Asset store, dithering, `ocr` option.

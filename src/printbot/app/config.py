@@ -1,4 +1,5 @@
-from typing import Annotated
+from pathlib import Path
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -9,6 +10,10 @@ class Config(BaseSettings):
 
     telegram_token: str = Field(min_length=1)
     allowed_user_ids: Annotated[frozenset[int], NoDecode]
+    data_dir: Path = Path("data")
+    migrations_directory: Path = Path("migrations")
+    printer_backend: Literal["fake", "usb"] = "fake"
+    printer_profile: str = "tm_t88v"
 
     @field_validator("telegram_token")
     @classmethod

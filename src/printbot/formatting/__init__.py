@@ -10,6 +10,7 @@ from printbot.formatting.text_layout import (
     wrap_text,
 )
 from printbot.formatting.text_normalization import normalize_text
+from printbot.formatting.text_planner import plan_text
 
 __all__ = [
     "Dither",
@@ -23,6 +24,7 @@ __all__ = [
     "load_font",
     "normalize_text",
     "pad_horizontal",
+    "plan_text",
     "render_spans",
     "rotate",
     "rule",

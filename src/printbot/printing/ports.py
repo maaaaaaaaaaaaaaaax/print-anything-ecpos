@@ -1,4 +1,5 @@
 from enum import StrEnum
+from pathlib import Path
 from typing import Protocol
 
 from printbot.kernel import Frozen, PrintPlan
@@ -19,7 +20,7 @@ class PrinterStatus(Frozen):
 
 
 class Printer(Protocol):
-    async def execute(self, plan: PrintPlan) -> None: ...
+    async def execute(self, plan: PrintPlan) -> Path | None: ...
 
     async def status(self) -> PrinterStatus: ...
 
