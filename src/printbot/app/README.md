@@ -8,12 +8,14 @@ Composition root. The only package that knows concrete classes and may import ev
 environment. The runtime constructs the aiogram bot, dispatcher, allowlist middleware, and
 message router, then starts long polling. The bot session is closed when polling exits or fails.
 
-Run the bot with:
+Copy `.env.example` to `.env`, replace its placeholder values, then run:
 
 ```sh
-TELEGRAM_TOKEN=... ALLOWED_USER_IDS=123456 uv run printbot
+cp .env.example .env
+uv run printbot
 ```
 
-Keep Telegram credentials in the environment or a secret manager, never in source control.
+Multiple user IDs are comma-separated. Keep Telegram credentials in `.env`, the process
+environment, or a secret manager, never in source control.
 
 Printer, repository, and worker composition remains planned.

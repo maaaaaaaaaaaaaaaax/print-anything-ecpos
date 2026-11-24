@@ -41,16 +41,19 @@
 
 ## Running the minimal bot
 
-Install the locked environment, set a Telegram bot token and at least one allowed user ID, then start long polling:
+Install the locked environment, copy the environment template, and replace its placeholders:
 
 ```sh
 uv sync
-TELEGRAM_TOKEN=... ALLOWED_USER_IDS=123456 uv run printbot
+cp .env.example .env
+uv run printbot
 ```
 
 `ALLOWED_USER_IDS` is a comma-separated list of positive decimal Telegram user IDs. The bot responds to `/start` and plain text messages from allowlisted users. Other users' updates are ignored before routing. This minimal bot only acknowledges messages; it does not queue or print them.
 
-Keep `TELEGRAM_TOKEN` in the environment or a secret manager. Never commit it.
+For multiple allowed users, separate IDs with commas, for example `ALLOWED_USER_IDS=123456,789012`.
+The actual `.env` file is ignored by Git. Keep `TELEGRAM_TOKEN` in `.env`, the process
+environment, or a secret manager. Never commit it.
 
 ## 3. System overview
 
