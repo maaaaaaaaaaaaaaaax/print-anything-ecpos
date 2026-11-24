@@ -21,10 +21,11 @@ async def test_fake_printer_records_plan_and_renders_png(tmp_path: Path) -> None
         profile,
     )
 
-    await printer.execute(plan)
+    output = await printer.execute(plan)
 
     assert printer.plans == (plan,)
     assert len(printer.saved_paths) == 1
+    assert output == printer.saved_paths[0]
     with Image.open(printer.saved_paths[0]) as image:
         assert image.width == profile.print_width_dots
         assert image.height > 0

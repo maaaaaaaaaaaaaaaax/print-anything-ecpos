@@ -28,6 +28,7 @@ class RecordingBot:
     def __init__(self, **_kwargs: object) -> None:
         self.session = RecordingSession()
         self.messages: list[tuple[int, str]] = []
+        self.documents: list[tuple[int, object]] = []
         self.calls: list[object] = []
         self.instances.append(self)
 
@@ -36,6 +37,9 @@ class RecordingBot:
 
     async def send_message(self, chat_id: int, text: str) -> None:
         self.messages.append((chat_id, text))
+
+    async def send_document(self, chat_id: int, document: object) -> None:
+        self.documents.append((chat_id, document))
 
 
 def text_update() -> Update:
@@ -73,7 +77,8 @@ async def test_run_wires_text_job_to_fake_print_and_stops_workers(
             for _ in range(100):
                 output_exists = (data_dir / "prints" / "print-0001.png").exists()
                 result_reported = (42, "Printed.") in bot.messages
-                if output_exists and result_reported:
+                document_sent = bool(bot.documents)
+                if not output_exists and document_sent and result_reported:
                     return
                 await asyncio.sleep(0.01)
             raise AssertionError("text job did not finish")
@@ -86,5 +91,7 @@ async def test_run_wires_text_job_to_fake_print_and_stops_workers(
     await run(config)
 
     assert RecordingBot.instances[0].session.closed
-    assert (data_dir / "prints" / "print-0001.png").exists()
+    assert not (data_dir / "prints" / "print-0001.png").exists()
+    assert not (data_dir / "prints").exists()
+    assert len(RecordingBot.instances[0].documents) == 1
     assert (42, "Printed.") in RecordingBot.instances[0].messages

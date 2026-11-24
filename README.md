@@ -51,7 +51,7 @@ uv run printbot
 
 `ALLOWED_USER_IDS` is a comma-separated list of positive decimal Telegram user IDs. The bot responds to `/start` and plain text messages from allowlisted users. Other users' updates are ignored before routing. Plain text is persisted as a job, reported as queued, converted, laid out for the configured profile, and printed by the single print worker.
 
-`PRINTER_BACKEND` is `fake` by default or `usb` for the configured printer. `PRINTER_PROFILE` selects a bundled profile such as `tm_t88v`. Fake output is written as PNG files under `DATA_DIR/prints`; the SQLite database is stored at `DATA_DIR/jobs.sqlite3`. Set `DATA_DIR` to a writable persistent directory on the Pi.
+`PRINTER_BACKEND` is `fake` by default or `usb` for the configured printer. `PRINTER_PROFILE` selects a bundled profile such as `tm_t88v`. Fake output is uploaded to Telegram as a PNG document and deleted locally after a successful upload; it is not retained on disk. The SQLite database is stored at `DATA_DIR/jobs.sqlite3`. Set `DATA_DIR` to a writable persistent directory on the Pi.
 
 For multiple allowed users, separate IDs with commas, for example `ALLOWED_USER_IDS=123456,789012`.
 The actual `.env` file is ignored by Git. Keep `TELEGRAM_TOKEN` in `.env`, the process

@@ -1,7 +1,9 @@
 import logging
+from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
+from aiogram.types import FSInputFile
 
 from printbot.jobs import Job, JobStatus
 
@@ -22,6 +24,21 @@ class TelegramNotifier:
                 job.status,
                 error,
             )
+
+    async def job_output(self, job: Job, path: Path) -> bool:
+        try:
+            await self._bot.send_document(
+                chat_id=job.chat_id,
+                document=FSInputFile(path),
+            )
+        except TelegramAPIError as error:
+            LOGGER.error(
+                "could not send output for job %s: %s",
+                job.id,
+                error,
+            )
+            return False
+        return True
 
 
 def _message_for(job: Job) -> str:

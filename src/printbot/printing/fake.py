@@ -35,7 +35,7 @@ class FakePrinter:
     def saved_paths(self) -> tuple[Path, ...]:
         return tuple(self._saved_paths)
 
-    async def execute(self, plan: PrintPlan) -> None:
+    async def execute(self, plan: PrintPlan) -> Path:
         self._require_open()
         async with self._lock:
             try:
@@ -46,6 +46,7 @@ class FakePrinter:
                 raise PrinterExecutionError(f"cannot write fake print: {error}") from error
             self._plans.append(plan)
             self._saved_paths.append(path)
+            return path
 
     async def status(self) -> PrinterStatus:
         self._require_open()

@@ -1,4 +1,6 @@
 import asyncio
+import contextlib
+from pathlib import Path
 
 from printbot.ingest import ConversionError
 from printbot.jobs.models import JobPatch
@@ -98,7 +100,7 @@ class PrintWorker:
             raise RuntimeError(f"job {job.id} is ready without a document")
         plan = self._planner(job.document, self._profile)
         try:
-            await self._printer.execute(plan)
+            output = await self._printer.execute(plan)
         except PrinterError as error:
             failed = await self._repository.transition(
                 job.id,
@@ -115,5 +117,12 @@ class PrintWorker:
             JobStatus.DONE,
         )
         if done is not None:
+            if isinstance(output, Path):
+                sent = await self._notifier.job_output(done, output)
+                if sent:
+                    with contextlib.suppress(OSError):
+                        output.unlink(missing_ok=True)
+                    with contextlib.suppress(OSError):
+                        output.parent.rmdir()
             await self._notifier.job_updated(done)
         return True

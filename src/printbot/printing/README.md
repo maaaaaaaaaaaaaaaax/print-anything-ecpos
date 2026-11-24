@@ -46,6 +46,7 @@ Record the printer make/model, paper width, USB ID, host OS, selected profile, l
 
 The adapter currently uses a 30-second USB timeout. python-escpos's USB backend uses endpoint IN `0x82` and OUT `0x01`. These are expected library defaults, not observations on a connected device; record whether the printer works with them and adjust only if the physical test shows a problem.
 
-The fake backend writes numbered PNG files to its configured output directory. It renders native text
-and raster operations at the selected profile width, reports healthy paper status, and requires no
-USB access.
+The fake backend temporarily writes numbered PNG files to its configured output directory. It
+renders native text and raster operations at the selected profile width, reports healthy paper
+status, and requires no USB access. The print worker sends the PNG to Telegram and removes it only
+after a successful upload.

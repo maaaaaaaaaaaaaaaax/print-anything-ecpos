@@ -13,4 +13,7 @@ receives `Queued for printing.` once. Duplicate updates receive no second acknow
 errors are logged without stopping job processing. The package depends on job ports and never
 imports storage or concrete printer code.
 
+For fake printing, `job_output` sends the generated PNG as a Telegram document. A successful upload
+is reported to the print worker so it can remove the local file. A failed upload does not remove it.
+
 URL, document, image, settings, command, and callback routers remain planned.

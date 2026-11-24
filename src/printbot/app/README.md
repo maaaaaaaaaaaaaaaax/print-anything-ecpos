@@ -23,8 +23,10 @@ uv run printbot
 Multiple user IDs are comma-separated. Keep Telegram credentials in `.env`, the process
 environment, or a secret manager, never in source control.
 
-With the fake backend, output is written to `DATA_DIR/prints/print-NNNN.png` and jobs are stored in
-`DATA_DIR/jobs.sqlite3`. Select a bundled profile with `PRINTER_PROFILE`; `tm_t88v` is the default.
+With the fake backend, output is temporarily written as `DATA_DIR/prints/print-NNNN.png`, uploaded
+to Telegram as a document, and deleted after a successful upload. Failed uploads leave the local
+file in place. Jobs are stored in `DATA_DIR/jobs.sqlite3`. Select a bundled profile with
+`PRINTER_PROFILE`; `tm_t88v` is the default.
 
 Status polling, settings, crash recovery, bounded conversion concurrency, and deployment remain
 planned.

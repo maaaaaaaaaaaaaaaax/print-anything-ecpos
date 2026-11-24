@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Protocol
 
 from printbot.ingest import Conversion
@@ -28,6 +29,8 @@ class JobRepository(Protocol):
 
 class Notifier(Protocol):
     async def job_updated(self, job: Job) -> None: ...
+
+    async def job_output(self, job: Job, path: Path) -> bool: ...
 
 
 class TextConverter(Protocol):

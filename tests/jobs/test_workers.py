@@ -14,9 +14,16 @@ from printbot.storage import SQLiteJobRepository
 class RecordingNotifier:
     def __init__(self) -> None:
         self.statuses: list[JobStatus] = []
+        self.outputs: list[Path] = []
+        self.output_sent = True
 
     async def job_updated(self, job) -> None:
         self.statuses.append(job.status)
+
+    async def job_output(self, job, path: Path) -> bool:
+        _ = job
+        self.outputs.append(path)
+        return self.output_sent
 
 
 class SerialRecordingPrinter:
@@ -40,7 +47,7 @@ class SerialRecordingPrinter:
 
 
 class FailingPrinter(SerialRecordingPrinter):
-    async def execute(self, plan: PrintPlan) -> None:
+    async def execute(self, plan: PrintPlan):
         _ = plan
         raise PrinterExecutionError("usb failure")
 
