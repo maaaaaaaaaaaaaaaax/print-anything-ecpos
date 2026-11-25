@@ -34,6 +34,13 @@ These values come from python-escpos's capability data, not from a measurement o
 
 ## USB hardware verification
 
+Install the PyUSB backend and Linux USB library before starting the service:
+
+```sh
+sudo apt install libusb-1.0-0
+uv sync --frozen
+```
+
 Run the smoke test on the Raspberry Pi with the printer connected and paper loaded:
 
 ```sh
@@ -50,3 +57,29 @@ The fake backend temporarily writes numbered PNG files to its configured output 
 renders native text and raster operations at the selected profile width, reports healthy paper
 status, and requires no USB access. The print worker sends the PNG to Telegram and removes it only
 after a successful upload.
+
+## USB Printer Setup (Raspberry Pi)
+
+1. Find your printer's USB ID:
+
+   ```bash
+   lsusb
+   ```
+
+   Example: `ID 04b8:0202 Seiko Epson Corp.` (vendor `04b8`, product `0202`)
+
+2. Set the IDs in your code or config (hex, or decimal in `.env`):
+
+   ```python
+   p = Usb(0x04b8, 0x0202)
+   ```
+
+3. Allow non-root access with a udev rule:
+
+   ```bash
+   echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="04b8", ATTR{idProduct}=="0202", MODE="0666"' | sudo tee /etc/udev/rules.d/99-epson.rules
+   sudo udevadm control --reload-rules
+   sudo udevadm trigger
+   ```
+
+4. Unplug and replug the printer.

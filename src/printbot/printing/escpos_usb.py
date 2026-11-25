@@ -38,7 +38,7 @@ DeviceFactory = Callable[[], Escpos]
 
 DEFAULT_USB_TIMEOUT_MS = 30_000
 
-_DEVICE_ERRORS = (EscposError, OSError)
+_DEVICE_ERRORS = (EscposError, OSError, RuntimeError)
 
 
 def usb_device_factory(
