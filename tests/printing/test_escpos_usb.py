@@ -120,6 +120,18 @@ async def test_connection_failure_is_typed_and_retried_on_next_call() -> None:
     await printer.close()
 
 
+async def test_missing_usb_library_is_reported_as_connection_failure() -> None:
+    def missing_usb() -> Escpos:
+        raise RuntimeError("Printing with USB connection requires a usb library")
+
+    printer = EscposUsbPrinter(missing_usb)
+
+    with pytest.raises(PrinterConnectionError, match="usb library"):
+        await printer.execute(plan(TextOp(text="x")))
+
+    await printer.close()
+
+
 async def test_execution_failure_is_typed_and_drops_the_connection() -> None:
     devices: list[ScriptedDummy] = [BrokenDummy(), ScriptedDummy()]
 

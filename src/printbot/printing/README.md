@@ -34,6 +34,13 @@ These values come from python-escpos's capability data, not from a measurement o
 
 ## USB hardware verification
 
+Install the PyUSB backend and Linux USB library before starting the service:
+
+```sh
+sudo apt install libusb-1.0-0
+uv sync --frozen
+```
+
 Run the smoke test on the Raspberry Pi with the printer connected and paper loaded:
 
 ```sh

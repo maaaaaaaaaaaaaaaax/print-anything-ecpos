@@ -9,7 +9,7 @@ dependencies = [
     "pillow>=11.0",
     "pydantic>=2.9",
     "pydantic-settings>=2.9",
-    "python-escpos>=3.1",
+    "python-escpos[usb]>=3.1",
     "pyyaml>=6.0",
 ]
 

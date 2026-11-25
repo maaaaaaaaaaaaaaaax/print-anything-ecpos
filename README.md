@@ -514,7 +514,7 @@ Printer status polling, alerts, logging configuration, and deployment remain pla
 
 ## 8. Deployment on the Pi 5
 
-- OS packages: `tesseract-ocr` (with `eng`, `deu`), `poppler-utils`, `libreoffice-writer`, `libreoffice-impress`, `libreoffice-calc`, `libmagic1`, and a fonts package with decent Unicode coverage.
+- OS packages: `libusb-1.0-0`, `tesseract-ocr` (with `eng`, `deu`), `poppler-utils`, `libreoffice-writer`, `libreoffice-impress`, `libreoffice-calc`, `libmagic1`, and a fonts package with decent Unicode coverage.
 - A udev rule grants the service user access to the printer by vendor and product ID.
 - A systemd unit runs `uv run printbot` with `EnvironmentFile` for secrets, `Restart=always`, and `MemoryMax` as a backstop against runaway conversions.
 - Update flow: `git pull`, `uv sync --frozen`, `systemctl restart printbot`. A `just deploy` recipe wraps it.
